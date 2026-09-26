@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import json
 import numpy as np
 from pathlib import Path
-from typing import TypeAlias
+from typing import Optional
 import zarr
 # for serialization
 from zarr.codecs import BloscCodec
@@ -27,20 +29,15 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
-BR: TypeAlias = BaseRaw
-DF: TypeAlias = DataFrame
-RD: TypeAlias = RawDataset
-BCD: TypeAlias = BaseConcatDataset
-WD: TypeAlias = WindowsDataset
 
-def _read_metadata(metadata_path: str = f"{c.BASE_DIR}/magisterka/metadata/metadata_exams.csv") -> DF:
+def _read_metadata(metadata_path: str = f"{c.BASE_DIR}/magisterka/metadata/metadata_exams.csv") -> DataFrame:
     """
     Load exam metadata once.
     """
     return read_csv(metadata_path)
 
 
-def _load_raw_eeg_from_metadata(metadata_df: DF, idx: int) -> RD:
+def _load_raw_eeg_from_metadata(metadata_df: DataFrame, idx: int) -> Optional[RawDataset]:
     """
     Load and wrap one eeg recording from edf file, by metadata row index.
     Add metadata to be in the mne object for easier clustering by features.
@@ -60,8 +57,8 @@ def _load_raw_eeg_from_metadata(metadata_df: DF, idx: int) -> RD:
         raw.drop_channels(to_drop)
 
     if not raw.ch_names:
-        print(f"Skipping {exam_id}: No valid 10-20 channels found.")
-        return None  
+        logger.warning("Skipping %s: No valid 10-20 channels found.", exam_id)
+        return None
 
     if_patho = metadata_df["pathology"].iloc[idx]
     site = metadata_df["site"].iloc[idx]
@@ -81,7 +78,7 @@ def _load_raw_eeg_from_metadata(metadata_df: DF, idx: int) -> RD:
 
 def load_raw_eegs_from_metadata(metadata_path: str, 
                                 idxs: list | None = None, 
-                                n_jobs: int = c.N_JOBS) -> BCD:
+                                n_jobs: int = c.N_JOBS) -> BaseConcatDataset:
     """
     Read metadata, load row for given indices in parallel (default None = all).
     Out of all unpreprocess raws create a BaseConcatDataset.
@@ -92,11 +89,15 @@ def load_raw_eegs_from_metadata(metadata_path: str,
     datasets = Parallel(n_jobs = n_jobs, 
                         backend = "loky", 
                         verbose = 5)(delayed(_load_raw_eeg_from_metadata)(metadata_df, idx) for idx in idxs)
+    n_before = len(datasets) #type:ignore
     datasets = [d for d in datasets if d is not None]
+    n_dropped = n_before - len(datasets)
+    if n_dropped:
+        logger.info("Dropped %d/%d recordings with no valid 10-20 channels.", n_dropped, n_before)
     return BaseConcatDataset(datasets)
 
 
-def rename_and_montage(raw: BR) -> BR:
+def rename_and_montage(raw: BaseRaw) -> BaseRaw:
     for mapping in c.CHNAMES_MAPPING:
                 if set(mapping.keys()).issubset(set(raw.ch_names)):
                     raw.rename_channels(mapping)
@@ -106,7 +107,7 @@ def rename_and_montage(raw: BR) -> BR:
                     on_missing='ignore')
     return raw
 
-def apply_specified_filters(raw: BR) -> BR:
+def apply_specified_filters(raw: BaseRaw) -> BaseRaw:
     sfreq = raw.info["sfreq"] #varies across recordings
     
     b, a = iirnotch(c.DEFAULT_NOTCH_FREQ, c.DEFAULT_NOTCH_Q, fs=sfreq)
@@ -125,14 +126,14 @@ def apply_specified_filters(raw: BR) -> BR:
     raw.apply_function(lambda d: sosfiltfilt(sos_lp, d, axis=-1), verbose=False)
     return raw
 
-def apply_rereference_drop_and_resample(raw: BR) -> BR:
-    raw.set_eeg_reference(ref_channels = c.LINKED_TEMPORAL)
+def apply_rereference_drop_and_resample(raw: BaseRaw) -> BaseRaw:
+    raw.set_eeg_reference(ref_channels = c.LINKED_TEMPORAL) #type:ignore
     raw.drop_channels(ch_names = c.LINKED_TEMPORAL)
     raw.resample(float(c.DEFAULT_SFREQ))
     return raw
 
-def _log_windows_info_and_standarize_recording_len(ds: RD, 
-                               windows_limit: int = c.MAX_WINDOWS_PER_REC) -> tuple[RD, int, dict, bool]:
+def _log_windows_info_and_standarize_recording_len(ds: RawDataset, 
+                               windows_limit: int = c.MAX_WINDOWS_PER_REC) -> tuple[RawDataset, int, dict, bool]:
     """
     Dropping flats and too artifacted windows is handled internally by create_fixed_length_windows, but this function logs it to metadata.
     Crop recording length (in windows) to selected threshold (here 150 defined in config) + log if too short.
@@ -151,10 +152,10 @@ def _log_windows_info_and_standarize_recording_len(ds: RD,
         ds.y = ds.windows.metadata["target"].to_numpy() #resync
     return ds, n_good_windows, dict(drop_counts), is_too_short
 
-def log_windows_info_and_standarize_recordings_len(windows_dataset: BCD, 
+def log_windows_info_and_standarize_recordings_len(windows_dataset: BaseConcatDataset, 
                                windows_limit: int = c.MAX_WINDOWS_PER_REC,
                                n_jobs: int = c.N_JOBS,
-                               stats_path: str = f"{c.BASE_DIR}/magisterka/metadata/windows_stats.csv") -> BCD:
+                               stats_path: str = f"{c.BASE_DIR}/magisterka/metadata/windows_stats.csv") -> BaseConcatDataset:
     """
     Full dataset applicable. Parallelized across recodings.
     Sort the dataset by sites for easier chunks later on.
@@ -173,7 +174,7 @@ def log_windows_info_and_standarize_recordings_len(windows_dataset: BCD,
             "bad_windows_reasons": drop_reasons,
             "too_short": too_short,
         }
-        for ds, n_good, drop_reasons, too_short in results
+        for ds, n_good, drop_reasons, too_short in results #type:ignore
     ])
 
     stats_df.to_csv(stats_path, index=False)
@@ -182,16 +183,17 @@ def log_windows_info_and_standarize_recordings_len(windows_dataset: BCD,
     n_dropped = int(stats_df["too_short"].sum())
     if n_dropped:
         logger.info("Dropped %d/%d recordings as too short (< %d windows).",
-                    n_dropped, len(results), windows_limit)
+                    n_dropped, len(results), windows_limit)  #type:ignore
     
-    valid_datasets = [ds for ds, _, _, too_short in results if not too_short]
+    valid_datasets = [ds for ds, _, _, too_short in results if not too_short]  #type:ignore
     
     return BaseConcatDataset(valid_datasets)
 
 ###################
 def build_preprocessed_windows_dataset(metadata_path: str = f"{c.BASE_DIR}/magisterka/metadata/metadata_exams.csv",
                                        idxs: list | None = None,
-                                       n_jobs: int = c.N_JOBS) -> BCD:
+                                       windows_limit: int = c.MAX_WINDOWS_PER_REC,
+                                       n_jobs: int = c.N_JOBS) -> BaseConcatDataset:
     """
     Full preprocessing pipeline with Braindecode wrappers:
     Load raws from EDFs aligned with preprocessed metadata (metadata_exams.csv).
@@ -300,7 +302,7 @@ def save_site_in_chunks(site_ds,
         zarr_path = chunk_path / "data.zarr"
  
         root = zarr.open(str(zarr_path), mode="w")
-        root.create_array(
+        root.create_array(  #type:ignore
             "data",
             shape=(N_chunk, n_windows, n_channels, n_samples),
             dtype=np.float32,  # reduced from float64
@@ -309,7 +311,7 @@ def save_site_in_chunks(site_ds,
                 BloscCodec(cname="zstd", clevel=5, shuffle="bitshuffle"),
             ],
         )
-        data_array = root["data"]
+        data_array = root["data"]  #type:ignore
  
         if n_jobs == 1:
             for i, ds in enumerate(chunk):
