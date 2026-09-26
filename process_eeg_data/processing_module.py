@@ -1,6 +1,7 @@
 import json
 import numpy as np
 from pathlib import Path
+from typing import TypeAlias
 import zarr
 # for serialization
 from zarr.codecs import BloscCodec
@@ -26,11 +27,11 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
-BR = BaseRaw
-DF = DataFrame
-RD = RawDataset
-BCD = BaseConcatDataset
-WD = WindowsDataset
+BR: TypeAlias = BaseRaw
+DF: TypeAlias = DataFrame
+RD: TypeAlias = RawDataset
+BCD: TypeAlias = BaseConcatDataset
+WD: TypeAlias = WindowsDataset
 
 def _read_metadata(metadata_path: str = f"{c.BASE_DIR}/magisterka/metadata/metadata_exams.csv") -> DF:
     """
@@ -53,7 +54,7 @@ def _load_raw_eeg_from_metadata(metadata_df: DF, idx: int) -> RD:
                         preload = True)
 
     raw.pick(picks=["eeg"])
-    to_drop = [ch for ch in raw.ch_names if ch not in c.VALID_1020]
+    to_drop = [ch for ch in raw.ch_names if ch not in c.VALID_CHANNELS]
     
     if to_drop:
         raw.drop_channels(to_drop)

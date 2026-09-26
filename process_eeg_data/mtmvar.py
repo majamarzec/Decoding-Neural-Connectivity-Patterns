@@ -679,7 +679,7 @@ def mvar_plot_dense(onDiag, offDiag, f, xlab, ylab, ChanNames, Top_title, scale=
 
             ax.grid(True, alpha=0.2, linestyle=':')
 
-    ax.set_title(Top_title, fontsize=12, fontweight='bold')
+    ax.set_title(Top_title, fontsize=12, fontweight='bold') #type:ignore
     fig.subplots_adjust(top=0.90)
 
     return fig
