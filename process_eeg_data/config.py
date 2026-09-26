@@ -7,16 +7,13 @@ BASE_DIR = "/dmj/fizmed/mmarzec/licencjat_neuro"
 PROJECT_DIR = os.path.join(BASE_DIR, "DL-NS") 
 BASE_CSV_PATH = os.path.join(BASE_DIR, "baza_elm19/ELM19_info.csv")
 EDF_DIR = os.path.join(BASE_DIR, "baza_elm19/ELM19_edfs")
-OUTPUT_PREPROCESSED_DIR = os.path.join(PROJECT_DIR, "dataset")
+PREPROCESSED_EEG_DIR = os.path.join(PROJECT_DIR, "data/eeg")
 
 # Models
 MODELS_DIR = os.path.join(PROJECT_DIR, "models_files")
 
-
-VALID_CHANNELS = {'Fp1','Fp2','F7','F3','Fz','F4','F8','T3','C3','Cz','C4','T4','T5','P3','Pz','P4','T6','O1','O2'}
-
 # ============================================================================
-# DEFAULT FILETRING PARAMETERS, SPECIFIC DESIGN PRIOR MVAR
+# DEFAULT PREPROCESSING PARAMETERS, SPECIFIC DESIGN PRIOR MVAR
 # ============================================================================
 
 DEFAULT_NOTCH_FREQ = 50.0
@@ -27,19 +24,7 @@ DEFAULT_LP_CUTOFF = 40.0
 DEFAULT_GPASS = 1.0
 DEFAULT_GSTOP = 20.0
 DEFAULT_MAX_ORDER = 4
-
-# ============================================================================
-# DEFAULT OTHERS
-# ============================================================================
-
 DEFAULT_SFREQ = 128
-DEFAUL_OUTPUT = "dataset"
-
-# ============================================================================
-# REFERENCE AND CORRESPONDING CHANNEL REMOVAL (PRIOR MVAR)
-# ============================================================================
-
-# symmetry in 10-20 system
 LINKED_TEMPORAL= ["T5", "T6"]
 
 # ============================================================================
@@ -54,6 +39,8 @@ N_JOBS = -3 #leave 3 CPU cores free
 
 
 ###############
+VALID_CHANNELS = {'Fp1','Fp2','F7','F3','Fz','F4','F8','T3','C3','Cz','C4','T4','T5','P3','Pz','P4','T6','O1','O2'}
+
 CHNAMES_MAPPING = [
     {
         "EEG Fp1": "Fp1",

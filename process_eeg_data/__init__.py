@@ -1,3 +1,3 @@
-import config
-import preprocessing_module
-import mtmvar
+from . import config
+from . import processing_module
+from . import mtmvar

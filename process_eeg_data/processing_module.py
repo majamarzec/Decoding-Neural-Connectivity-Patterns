@@ -16,7 +16,7 @@ from scipy.signal import butter, iirnotch, sosfiltfilt, filtfilt, buttord
 #local config
 import config as c
 #utilize braindecode's wrappers for internal parallelization
-from braindecode.datasets import RawDataset, BaseConcatDataset, WindowsDataset
+from braindecode.datasets import RawDataset, BaseConcatDataset
 from braindecode.preprocessing import Preprocessor, create_fixed_length_windows, preprocess
 
 #for parallelization
@@ -30,7 +30,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 
 
-def _read_metadata(metadata_path: str = f"{c.BASE_DIR}/magisterka/metadata/metadata_exams.csv") -> DataFrame:
+def _read_metadata(metadata_path: str = f"{c.PROJECT_DIR}/data/meta/exams.csv") -> DataFrame:
     """
     Load exam metadata once.
     """
@@ -48,7 +48,7 @@ def _load_raw_eeg_from_metadata(metadata_df: DataFrame, idx: int) -> Optional[Ra
     raw  = read_raw_edf(path,
                         infer_types = True,
                         verbose = 0,
-                        preload = True)
+                        preload = False)
 
     raw.pick(picks=["eeg"])
     to_drop = [ch for ch in raw.ch_names if ch not in c.VALID_CHANNELS]
@@ -155,7 +155,7 @@ def _log_windows_info_and_standarize_recording_len(ds: RawDataset,
 def log_windows_info_and_standarize_recordings_len(windows_dataset: BaseConcatDataset, 
                                windows_limit: int = c.MAX_WINDOWS_PER_REC,
                                n_jobs: int = c.N_JOBS,
-                               stats_path: str = f"{c.BASE_DIR}/magisterka/metadata/windows_stats.csv") -> BaseConcatDataset:
+                               stats_path: str = f"{c.PROJECT_DIR}/data/meta/windows_stats.csv") -> BaseConcatDataset:
     """
     Full dataset applicable. Parallelized across recodings.
     Sort the dataset by sites for easier chunks later on.
@@ -190,7 +190,7 @@ def log_windows_info_and_standarize_recordings_len(windows_dataset: BaseConcatDa
     return BaseConcatDataset(valid_datasets)
 
 ###################
-def build_preprocessed_windows_dataset(metadata_path: str = f"{c.BASE_DIR}/magisterka/metadata/metadata_exams.csv",
+def build_preprocessed_windows_dataset(metadata_path: str = f"{c.PROJECT_DIR}/data/meta/exams.csv",
                                        idxs: list | None = None,
                                        windows_limit: int = c.MAX_WINDOWS_PER_REC,
                                        n_jobs: int = c.N_JOBS) -> BaseConcatDataset:
@@ -229,13 +229,14 @@ def build_preprocessed_windows_dataset(metadata_path: str = f"{c.BASE_DIR}/magis
         drop_bad_windows= True,
         on_last_window = 'drop',
         use_mne_epochs = True,
-        preload = True
+        preload = False
     )
     N2 = len(windows_ds.datasets)
     logger.info("Windowing done: %d recordings.", N2)
 
     logger.info("Standarizing recordings length...")
-    windows_ds = log_windows_info_and_standarize_recordings_len(windows_ds, 
+    windows_ds = log_windows_info_and_standarize_recordings_len(windows_ds,
+                                                                windows_limit = windows_limit,
                                                                 n_jobs = n_jobs)
     N2 = len(windows_ds.datasets) #overwriting on purpose
     logger.info("Done: %d saved recordings of standarized length [windows]", N2)
@@ -252,7 +253,7 @@ def _write_one_exam(data_array,
 
 def save_site_in_chunks(site_ds,
                         site_name: str,
-                        output_path: str = c.OUTPUT_PREPROCESSED_DIR,
+                        output_path: str = c.PREPROCESSED_EEG_DIR,
                         N_exams_per_chunk: int = 25,
                         n_jobs: int = 1) -> list[dict]:
     """
