@@ -1,12 +1,18 @@
-from processing_module import build_preprocessed_windows_dataset, save_site_in_chunks
+"""
+The script executing the whole processing + saving pipeline.
+"""
 
-print("Starting the eeg processing pipeline...")
-exams_after_eda_processing = 51135
-ds = build_preprocessed_windows_dataset(idxs = [i for i in range(exams_after_eda_processing)])
-site_datasets = ds.split(by="site")
 
-for site_name, site_dataset in site_datasets.items():
+import logging
+from pipeline_module import run_pipeline
 
-    save_site_in_chunks(
-        site_ds=site_dataset,
-        site_name=site_name)
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, 
+                    format="%(asctime)s [%(levelname)s] %(message)s",
+                    handlers = [logging.FileHandler("batch_preprocessing.log"),
+                                logging.StreamHandler()],
+                    force = True)
+logger.info("Starting processing.")
+run_pipeline()
+    

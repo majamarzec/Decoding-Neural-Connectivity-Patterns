@@ -1,2 +1,5 @@
 **/__pycache__/
 data/
+process_metadata/regress.ipynb
+dl_venv/
+load_eeg_data/
