@@ -1,0 +1,7 @@
+[project]
+
+name = "deep learning neuroscreening"
+version = "2.0"
+dependencies = [
+    
+]
