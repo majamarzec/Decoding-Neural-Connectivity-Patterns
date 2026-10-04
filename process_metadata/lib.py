@@ -1,9 +1,9 @@
 import pandas as pd
-import configuration as c
 import numpy as np
-import math
 from typing import Any, Literal
 from pandas.io.formats.style import Styler
+import config as c
+
 
 
 def get_scattered_chunks(data: pd.DataFrame, 
