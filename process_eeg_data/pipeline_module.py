@@ -49,14 +49,15 @@ def run_pipeline():
     counter = 0
 
     try:
-        for row in metadata.to_dict(orient = "records"): #‘records’ : list like [{column -> value}, … , {column -> value}]
+        for i, row in enumerate(metadata.to_dict(orient = "records")): #‘records’ : list like [{column -> value}, … , {column -> value}]
             processed_eeg = process(row)
             if processed_eeg is None:
-                logger.info("Exam at metadata row %d discarded", counter)
+                logger.info("Exam %s discarded", str(metadata["exam_id"][i]))
                 continue
             mm[counter] = processed_eeg #index has to be counted dynamically due to disarded exams
             counter+=1 #incrementation
     finally:
+        logger.info(f"There are {counter} preprocessed exams")
         mm.flush()
         del mm
 

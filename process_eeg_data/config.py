@@ -17,6 +17,7 @@ PREPROCESSED_EEG_DIR = os.path.join(PROJECT_DIR, "data/eeg")
 META_EVENTS_PATH = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/meta/exams.csv"
 META_EVENTS_PROCESSED_PATH = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/meta/exams_processed.csv"
 META_EVENTS_PROCESSED_TECH_PATH = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/meta/exams_processed_technical_info.csv"
+META_EVENTS_NOT_PROCESSED_TECH_PATH = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/meta/exams_including_not_processed_technical_info.csv"
 META_WINDOWS_PATH = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/meta/windows.csv"
 
 

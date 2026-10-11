@@ -12,7 +12,7 @@ warnings.filterwarnings(
 
 from dcsp_module import load_and_process_continuous_eeg
 from dwsp_module import window_continuous_eeg
-from metadata_module import append_good_eeg_metadata, append_technical_info_metadata
+from metadata_module import append_good_eeg_metadata, append_processed_eegs_technical_info_metadata, append_not_processed_eegs_technical_info_metadata
 
 import mne
 import numpy as np
@@ -32,12 +32,14 @@ mne.set_log_level("WARNING")
 
 def process(row: dict) -> Optional[np.ndarray]:
     eeg, info = load_and_process_continuous_eeg(row)
+    append_not_processed_eegs_technical_info_metadata(info)
     if eeg is None:
-        logger.warning("Recording not loaded for preprocessing!")
+        logger.warning("Recording not loaded for preprocessing, but saved in technical info metadata!")
         return None
-    append_good_eeg_metadata(eeg.description) #bad signal excluded
-    windowed_eeg_ndarray = window_continuous_eeg(eeg.raw, info)
-    append_technical_info_metadata(info) #bad signal included
+    windowed_eeg_ndarray, info = window_continuous_eeg(eeg.raw, info)
+    if windowed_eeg_ndarray is not None:
+        append_good_eeg_metadata(eeg.description)
+    append_processed_eegs_technical_info_metadata(info)
     return windowed_eeg_ndarray
 
 

@@ -15,7 +15,7 @@ import config as c
 import pandas as pd
 import mne
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
 
 import logging
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def window_continuous_eeg(eeg: mne.io.Raw,
                           window_len: float = c.DEFAULT_WINDOW_LEN,
                           max_ptp: float = c.BIG_ARTIFACT_PTP,
                           flat_ptp: float = c.FLAT_PTP,
-                          windows_limit: int = c.TARGET_WINDOWS) -> Optional[np.ndarray]:
+                          windows_limit: int = c.TARGET_WINDOWS) -> Tuple[Optional[np.ndarray], dict]:
 
     #create events of fixed length 
     windows_events = mne.make_fixed_length_events(eeg,
@@ -41,7 +41,7 @@ def window_continuous_eeg(eeg: mne.io.Raw,
     # instantiate epochs with PTP amplitude rejection criterion
     windows = mne.Epochs(eeg,
                          tmin = 0,
-                         tmax = window_len - 1/c.DEFAULT_SFREQ, #inclusive so it produces 1 samle too much
+                         tmax = window_len - 1/c.DEFAULT_SFREQ, #inclusive so it produces 1 sample too much
                          baseline = None,
                          events = windows_events)
 
@@ -57,10 +57,10 @@ def window_continuous_eeg(eeg: mne.io.Raw,
 
     if n_good_windows < windows_limit:
         info["status"] = "too short"
-        return None
+        return None, info
     
     windows = windows[:windows_limit]
     data = windows.get_data() #array of shape (n_epochs, n_channels, n_times)
     assert data.shape == (c.TARGET_WINDOWS, len(c.VALID_CHANNELS_AFTER_DROP),  c.DEFAULT_WINDOW_LEN * c.DEFAULT_SFREQ), f"{data.shape} != expected"
-    return data
+    return data, info
 

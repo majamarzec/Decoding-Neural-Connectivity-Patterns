@@ -12,6 +12,10 @@ def append_good_eeg_metadata(eeg_description: dict,
     DataFrame([eeg_description]).to_csv(exams_processed, mode="a", header = False, index=False)
 
 
-def append_technical_info_metadata(info: dict, 
+def append_processed_eegs_technical_info_metadata(info: dict, 
                                    exams_processed_technical_info : str = c.META_EVENTS_PROCESSED_TECH_PATH) -> None:
+    DataFrame([info]).to_csv(exams_processed_technical_info, mode="a", header = False, index=False)
+
+def append_not_processed_eegs_technical_info_metadata(info: dict, 
+                                   exams_processed_technical_info : str = c.META_EVENTS_NOT_PROCESSED_TECH_PATH) -> None:
     DataFrame([info]).to_csv(exams_processed_technical_info, mode="a", header = False, index=False)
