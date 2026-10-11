@@ -65,7 +65,6 @@ def _load_raw_from_row(row: dict) -> Tuple[Optional[RawDataset], dict]:
         logger.warning("Skipping %s before loading data: The recording is too short.", exam_id)
         return None, info
 
-    
     info["status"] = "ok"
     raw.load_data() 
     age_bins = list(range(16, 67, 10))
@@ -118,19 +117,20 @@ def apply_channels_rename(data: RawDataset) -> None:
                 if set(mapping.keys()).issubset(set(raw.ch_names)):
                     raw.rename_channels(mapping)
 
-def apply_channels_cleaning(data: RawDataset, info: dict) -> bool:
+def apply_channels_cleaning(data: RawDataset, info: dict) -> Tuple[bool, dict]:
     raw = data.raw
-    keep = set(c.VALID_CHANNELS_AFTER_DROP) | set(c.LINKED_TEMPORAL)
+    keep = set(c.VALID_CHANNELS)
     to_drop = [ch for ch in raw.ch_names if ch not in keep]
     raw.drop_channels(to_drop)
     info["ch_drop"] = json.dumps(to_drop)
     missing = sorted(keep - set(raw.ch_names))
+    info["ch_missing"] = []
     if missing:
         info["ch_missing"] = json.dumps(missing)
         info["status"] = "missing_channels"
         logger.warning("Skipping %s: missing channels %s", info["exam_id"], missing)
-        return False
-    return True
+        return False, info
+    return True, info
 
 def apply_montage(data: RawDataset):
     raw = data.raw
@@ -145,9 +145,9 @@ def load_and_process_continuous_eeg(row_from_original_metadata: dict) -> Tuple[O
     if signal is None:
         return None, technical_info
     apply_channels_rename(signal)
-    if not apply_channels_cleaning(signal, technical_info):
-            return None, technical_info
-
+    if_clean, technical_info = apply_channels_cleaning(signal, technical_info)
+    if not if_clean:
+        return None, technical_info
     apply_specified_filters(signal)
     apply_resample(signal)
     apply_montage(signal)
