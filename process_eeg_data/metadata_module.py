@@ -1,4 +1,4 @@
-import config as c 
+from . import config as c 
 from pandas import DataFrame, read_csv
 
 def read_metadata(metadata_path: str = c.META_EVENTS_PATH) -> DataFrame:

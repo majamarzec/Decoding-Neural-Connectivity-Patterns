@@ -10,9 +10,9 @@ warnings.filterwarnings(
     message=r"Montage name 'standard_1020' is deprecated",
     category=FutureWarning)
 
-from dcsp_module import load_and_process_continuous_eeg
-from dwsp_module import window_continuous_eeg
-from metadata_module import append_good_eeg_metadata, append_processed_eegs_technical_info_metadata, append_not_processed_eegs_technical_info_metadata
+from .dcsp_module import load_and_process_continuous_eeg
+from .dwsp_module import window_continuous_eeg
+from .metadata_module import append_good_eeg_metadata, append_processed_eegs_technical_info_metadata, append_not_processed_eegs_technical_info_metadata
 
 import mne
 import numpy as np

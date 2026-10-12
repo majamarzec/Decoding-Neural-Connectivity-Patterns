@@ -21,9 +21,9 @@ import numpy as np
 import mne
 import os
  
-import config as c
-from fsp_module import process
-from metadata_module import read_metadata
+from . import config as c
+from .fsp_module import process
+from .metadata_module import read_metadata
 
 import logging
 logger = logging.getLogger(__name__)
