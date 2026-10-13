@@ -204,32 +204,26 @@ def mvar_H(Ar):
         Transfer function matrix with shape (chan, chan, len(f)).
     """
 
-    Nf = len(c.f)
-    chan, _, p = Ar.shape
-    
-    H = np.zeros((chan, chan, Nf), dtype=complex)
-    A_out = np.zeros((chan, chan, Nf), dtype=complex)
-
-    #lag vector
-    m_vector = np.arange(1, p + 1).reshape(p, 1)
-
-    # Z transform (p,1) -> (p, Nf) (into frequency domain)
-    z = np.exp(-1j * 2 * np.pi * m_vector * c.f / c.Fs) 
+    m_vector = np.arange(1, c.p + 1).reshape(c.p, 1) #lag vector
+    z = np.exp(-1j * 2 * np.pi * m_vector * c.f / c.Fs) # Z transform (p,1) -> (p, Nf) (into frequency domain)
 
     # Ar shape: (chan, chan, p), z shape: (p, Nf) -> sum_term shape: (chan, chan, Nf)
     # 'ijp' = target, source, lag | 'pf' = lag, frequency -> 'ijf' = target, source, frequency
     sum_term = np.einsum('ijp,pf->ijf', Ar, z) #Einstein convention summation
-    I = np.eye(chan, dtype=complex)[..., np.newaxis]
+    I = np.eye(c.N_channels, dtype=complex)[..., np.newaxis]
     A_out = I - sum_term
+    A_f = np.moveaxis(A_out, -1, 0)
 
-    H = np.zeros_like(A_out, dtype=complex)
-    for fi in range(Nf):
-        try:
-            H[:, :, fi] = np.linalg.inv(A_out[:, :, fi])
-        except np.linalg.LinAlgError:
-            H[:, :, fi] = np.nan
-           
-    return H
+    try:
+        H_f = np.linalg.inv(A_f)
+    except np.linalg.LinAlgError:
+        H_f = np.full_like(A_f, np.nan)
+        for fi in range(A_f.shape[0]):
+            try:
+                H_f[fi] = np.linalg.inv(A_f[fi])
+            except np.linalg.LinAlgError:
+                pass          # this frequency stays NaN
+    return np.moveaxis(H_f, 0, -1) 
 
 ### from mtmvar package
 def ffDTF(H):
@@ -260,12 +254,8 @@ def ffDTF(H):
     """
 
     DTF = np.abs(H)**2
-    N_chan, _, N_f = DTF.shape
-    # Normalize DTF to get full-frequency DTF (ffDTF)
-    ffDTF = np.zeros((N_chan,N_chan, N_f))
-    for i in range(N_chan):  # rows
-        for j in range(N_chan):  # columns
-            ffDTF[i,j,:] = DTF[i,j,:] / np.sum(DTF[i,:,:])
+    # Normalize NDTF to get full-frequency normalised DTF (ffDTF)
+    ffDTF = DTF / DTF.sum(axis=(1, 2), keepdims=True)
     return ffDTF
 
 ###
