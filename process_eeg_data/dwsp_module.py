@@ -10,7 +10,7 @@ warnings.filterwarnings(
     message=r"Montage name 'standard_1020' is deprecated",
     category=FutureWarning)
 
-import config as c
+from . import config as c
 
 import pandas as pd
 import mne
