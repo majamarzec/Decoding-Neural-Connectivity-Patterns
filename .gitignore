@@ -2,4 +2,4 @@
 data/
 process_metadata/regress.ipynb
 dl_venv/
-load_eeg_data/
+process_eeg_data/batch.processing.log
