@@ -22,3 +22,5 @@ freq_bands = {'Delta': (1.0, 4.0),
               'Gamma': (31.0, 40.0)}
 
 f = np.arange(1, 40, 1)
+#set mvar model order
+p = 9
