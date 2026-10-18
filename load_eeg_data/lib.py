@@ -9,15 +9,28 @@ import networkx as nx
 import matplotlib as mpl
 from mne_connectivity.viz import plot_connectivity_circle 
 import logging
+from pandas import DataFrame, read_csv
 
+def read_metadata(metadata_path: str = c.metadata_path) -> DataFrame:
+    return read_csv(metadata_path)
 
 ###
-def load_memmap():
+def load_eeg_memmap():
     mm = np.memmap(c.signals_path, 
                 dtype = c.dtype, 
                 mode = 'r', #only reading
                 shape = (c.N_exams, c.N_windows, c.N_channels, c.Window_len*c.Fs))
     return mm
+
+def load_s00_conn_memmap():
+    meta = read_metadata()
+    i_exams = np.where(np.asarray(meta['site']) == 'S00')[0]
+    n_exams = len(i_exams)
+    mm = np.memmap(c.s00_conn_path, 
+                dtype = c.dtype, 
+                mode = 'r', #only reading
+                shape = (n_exams, c.N_windows, c.N_channels, c.N_channels, len(c.freq_bands)))
+    return mm, i_exams, n_exams
 
 def plot_epoch_eeg(exam, start_epoch, end_epoch, n_epochs_to_plot, scalings=dict(eeg=50e-6)):
     info = mne.create_info(c.channels, sfreq=c.Fs, ch_types="eeg")  
@@ -259,6 +272,7 @@ def ffDTF(H):
     return ffDTF
 
 ###
+#for plotting
 def aggregate_bands(connectivity, pool=np.sum, transpose=True):
     """
     Collapse (N_chan, N_chan, N_f) into one (N_chan, N_chan) matrix per band.
@@ -277,6 +291,22 @@ def aggregate_bands(connectivity, pool=np.sum, transpose=True):
         np.fill_diagonal(m, 0)
         out[title] = m
     return out
+
+#for features
+def bands_to_image(band_mats):
+    """{band: (N, N)} -> (N, N, N_bands), band order = c.freq_bands order."""
+    return np.stack(list(band_mats.values()), axis=-1)
+###
+def feature_pipeline(window, feature_type = 'ffDTF', aggregation_method = np.sum):
+    window_zscored = zscore_per_channel(window)
+    AR, _ = AR_coeff(window_zscored)
+    H = mvar_H(AR)
+    if feature_type == 'NDTF':
+        feature = np.abs(H)**2
+    if feature_type == 'ffDTF':
+        feature = ffDTF(H)
+    feature_bands = aggregate_bands(feature, pool = aggregation_method) #type:ignore
+    return bands_to_image(feature_bands)
 ###
 
 def plot_one_flow(connectivity, from_channel, to_channel, ylabel = "|H_ij(f)|² / Σ_f Σ_k |H_ik(f)|²", conn_name = "ffDTF"):
@@ -311,6 +341,21 @@ def plot_all_flows(connectivity, ylabel = "|H_ij(f)|² / Σ_f Σ_k |H_ik(f)|²",
 
 ###
 def heatmap_bands(mats, cmap='viridis', conn_name = 'ffDTF'):
+    fig, axes = plt.subplots(1, 5 , figsize=(15, 5), squeeze=False)
+    axes = axes.ravel()
+    for i, ax in enumerate(axes):
+        sns.heatmap(mats[:, :, i].T, ax=ax, xticklabels=c.channels, yticklabels=c.channels,
+                    cmap=cmap, square=True, cbar=False)
+        ax.set_title(list(c.freq_bands.keys())[i])
+        ax.tick_params(axis='x', rotation=90, labelsize=8)
+        ax.tick_params(axis='y', rotation=0, labelsize=8)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap) #type:ignore
+    fig.colorbar(sm, ax=axes, shrink=0.65, pad=0.02, label='Connectivity strength')
+    #fig.suptitle(f"Band-aggregated {conn_name} for an EEG window", fontsize=10, y=1)
+    return fig
+
+def heatmap_bands_dict(mats, cmap='viridis', conn_name = 'ffDTF'):
     titles = list(mats)
     vmin = min(m.min() for m in mats.values())
     vmax = max(m.max() for m in mats.values())
@@ -318,7 +363,7 @@ def heatmap_bands(mats, cmap='viridis', conn_name = 'ffDTF'):
     fig, axes = plt.subplots(1, len(mats), figsize=(4.4 * len(mats), 5), squeeze=False)
     axes = axes.ravel()
     for ax, title in zip(axes, titles):
-        sns.heatmap(mats[title], ax=ax, xticklabels=c.channels, yticklabels=c.channels,
+        sns.heatmap(mats[title].T, ax=ax, xticklabels=c.channels, yticklabels=c.channels,
                     cmap=cmap, vmin=vmin, vmax=vmax, square=True, cbar=False)
         ax.set_title(title)
         ax.tick_params(axis='x', rotation=90, labelsize=8)
@@ -330,7 +375,7 @@ def heatmap_bands(mats, cmap='viridis', conn_name = 'ffDTF'):
     return fig
 
 
-def circle_bands(mats,cmap='viridis', conn_name = 'ffDTF'):
+def circle_bands_dict(mats,cmap='viridis', conn_name = 'ffDTF'):
     titles = list(mats)
     vmin = min(m.min() for m in mats.values())
     vmax = max(m.max() for m in mats.values())
