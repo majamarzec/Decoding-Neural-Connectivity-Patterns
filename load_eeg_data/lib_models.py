@@ -13,6 +13,8 @@ import torch.nn.functional as F
 
 import pytorch_lightning as L 
 from pytorch_lightning.utilities.types import OptimizerLRSchedulerConfig
+from pytorch_lightning.loggers import TensorBoardLogger
+
 
 
 class S00MILDataset(Dataset):
@@ -152,25 +154,44 @@ class BagEncoder(L.LightningModule):
         x, _ = batch #not using labels in unsupervised AE
         recon, _ = self(x) # self == model
         loss = F.mse_loss(recon, x)
-        self.log(f"{stage}_loss", loss, on_epoch=True, prog_bar=True,
-                 batch_size=x.shape[0])
-        return loss
+        self.log(f"{stage}_loss", loss, on_epoch=True, prog_bar=True,batch_size=x.shape[0])
+        return loss, x, recon
 
     def training_step(self, batch):
-        return self._step(batch, "train")
+        loss, _, _ = self._step(batch, "train")
+        return loss
 
-    def validation_step(self, batch):
-        self._step(batch, "val")
+    def validation_step(self, batch, batch_idx):
+        _, x, recon = self._step(batch, "val")
+        if isinstance(self.logger, TensorBoardLogger) and batch_idx == 0 and self.current_epoch % 5 == 0 and not self.trainer.sanity_checking:
+            self._log_heatmaps(x, recon)
 
-    def predict_step(self, batch):
+    def test_step(self, batch, batch_idx):
+        _, x, recon = self._step(batch, "test")   # logs "test_loss", averaged over the epoch
+        if isinstance(self.logger, TensorBoardLogger) and batch_idx == 0:
+            self._log_heatmaps(x, recon, stage="test")
+
+    def _log_heatmaps(self, x, recon, exam_i=0, window_i=80, stage="val"):
+        exam_i = min(exam_i, x.shape[0] - 1)
+        window_i = min(window_i, x.shape[1] - 1)
+        tb = self.logger.experiment  # type: ignore
+        xi, ri = x[exam_i, window_i], recon[exam_i, window_i]
+        vmin = min(xi.min(), ri.min()).item()
+        vmax = max(xi.max(), ri.max()).item()
+        fig_o = heatmap_bands(xi, input_type='reconstructed', title=f"original (exam {exam_i}, window {window_i})", vmin=vmin, vmax=vmax)
+        fig_r = heatmap_bands(ri, input_type='reconstructed', title=f"reconstructed (exam {exam_i}, window {window_i})", vmin=vmin, vmax=vmax)
+        tb.add_figure(f"{stage}/original", fig_o, global_step=self.current_epoch, close=True)
+        tb.add_figure(f"{stage}/reconstructed", fig_r, global_step=self.current_epoch, close=True)
+
+    def predict_step(self, batch, batch_idx):
         x, _ = batch
         recon, z = self(x)
         return recon, z
 
     def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
         optimizer = torch.optim.Adam(self.parameters(), 
-                               lr=self.lr,
-                               weight_decay=self.weight_decay)
+                                     lr=self.lr,
+                                      weight_decay=self.weight_decay)
         
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3)
         return {
@@ -192,7 +213,7 @@ def load_s00_conn_memmap():
                 shape = (n_exams, c.N_windows, c.N_channels, c.N_channels, len(c.freq_bands)))
     return mm, i_exams, n_exams
 
-def heatmap_bands(mats, cmap='viridis', input_type='original'):
+def heatmap_bands(mats, cmap='viridis', input_type='original', title=None, vmin=None, vmax=None):
     """
     input_type='original'      : mats is (C, C, B)
     input_type='reconstructed' : mats is (B, C, C), torch tensor or numpy array
@@ -207,7 +228,8 @@ def heatmap_bands(mats, cmap='viridis', input_type='original'):
         raise ValueError(f"unknown input_type: {input_type!r}")
 
     band_names = list(c.freq_bands.keys())
-    vmin, vmax = mats.min(), mats.max()
+    vmin = mats.min() if vmin is None else vmin
+    vmax = mats.max() if vmax is None else vmax
 
     fig, axes = plt.subplots(1, mats.shape[-1], figsize=(15, 5), squeeze=False)
     axes = axes.ravel()
@@ -220,7 +242,7 @@ def heatmap_bands(mats, cmap='viridis', input_type='original'):
 
     sm = plt.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap=cmap)  # type: ignore
     fig.colorbar(sm, ax=axes, shrink=0.65, pad=0.02, label='Connectivity strength')
-    fig.suptitle(f"{input_type} band-aggregated ffDTF", fontweight='bold', fontsize=15, y=0.8)
+    fig.suptitle(f"{title or input_type} band-aggregated ffDTF", fontweight='bold', fontsize=15, y=0.8)
     return fig
 
 def compare_heatmaps(val_ds, connectivity_mm, reconstructed, recon_i, window_i):
