@@ -4,6 +4,7 @@ signals_path = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/eeg/eeg.dat" #all
 metadata_path = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/meta/exams_processed.csv" #corresponding labels and metadata 
 PREPROCESSED_CONN_DIR ="/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/connectivity/"
 s00_conn_path =  "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/connectivity/S00_ffDTF.dat"
+all_sites_conn_path = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/connectivity/all_sites_ffDTF.dat"
 
 #both accessed by indices
 

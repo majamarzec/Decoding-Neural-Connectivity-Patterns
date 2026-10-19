@@ -16,7 +16,7 @@ import pytorch_lightning as L
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from lib_models import S00MILDataset, ConvAE, BagEncoder
+from lib_models import S00MILDataset, ConvAE, ConvAE2, ConvAE3, BagEncoder
 
 
 folds = [0,1,2,3,4]
@@ -29,18 +29,18 @@ weight_decay = 1e-5
 seed = 0 #for reproducibility
 
 
+###
+chosen_conv_ae = ConvAE3
+latent = 128
+max_instances = 150 #for now let's train/val/test on ALL windows
+save_preds = True #save test reconstructions + latents per fold
+
 ####
-run_name = "model_conv_ae1_k3_s2p1_l16"
+run_name = "model_conv_ae3_17_s1p2_l128"
 splits_dir = "splits/s00.npz"
 log_dir = "logs"
 out_dir = "result/" + run_name
 os.makedirs(out_dir, exist_ok=True)
-
-###
-chosen_conv_ae = ConvAE
-latent = 16
-max_instances = 150 #for now let's train/val/test on ALL windows
-save_preds = True #save test reconstructions + latents per fold
 
 results = []
 

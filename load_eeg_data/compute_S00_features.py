@@ -1,2 +1,0 @@
-from S00_features_computation import run_pipeline
-run_pipeline()

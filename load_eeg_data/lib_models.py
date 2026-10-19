@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from pandas import DataFrame, read_csv
 
+
 import torch
 from torch.utils.data import Dataset
 import torch.nn as nn
@@ -15,7 +16,38 @@ import pytorch_lightning as L
 from pytorch_lightning.utilities.types import OptimizerLRSchedulerConfig
 from pytorch_lightning.loggers import TensorBoardLogger
 
+class MILDataset(Dataset):
+    def __init__(self, exam_idx, max_instances=None, train=False):
 
+        self.exam_idx = np.asarray(exam_idx)              
+        self.max_instances = max_instances #that will be taken from one exam (bag)
+        self.train = train #(bool), to define train vs val/ hold-out
+        self._mm = None #lazy (big file)
+
+        #from metadata - exams_processed.csv
+        meta = read_metadata() #open eagerly (small file)
+        self.labels = np.asarray(meta['pathology']).astype(int)
+
+    def __len__(self):
+        return len(self.exam_idx) #the length corresponds to exams (bags) not individual instances
+
+    def __getitem__(self, i): 
+        if self._mm is None:
+            self._mm, _ = load_conn_memmap() # shape = (exams, windows, channels, channels, freq_bands)
+        exam_i = self.exam_idx[i]
+        bag = self._mm[exam_i] # shape = (windows, channels, channels, freq_bands)
+
+        N_instances = bag.shape[0]
+        if self.max_instances and N_instances > self.max_instances:
+            if self.train:
+                keep = np.sort(np.random.choice(N_instances, self.max_instances, replace=False))
+            else:
+                keep = np.linspace(0, N_instances - 1, self.max_instances).astype(int)
+            bag = bag[keep]
+
+        bag = torch.as_tensor(np.array(bag, dtype=c.dtype))
+        bag = bag.permute(0, 3, 1, 2) # shape = (windows, freq_bands, channels, channels)
+        return bag, torch.tensor(self.labels[exam_i], dtype=torch.float32)
 
 class S00MILDataset(Dataset):
     def __init__(self, exam_idx, max_instances=None, train=False):
@@ -171,7 +203,7 @@ class BagEncoder(L.LightningModule):
         if isinstance(self.logger, TensorBoardLogger) and batch_idx == 0:
             self._log_heatmaps(x, recon, stage="test")
 
-    def _log_heatmaps(self, x, recon, exam_i=0, window_i=80, stage="val"):
+    def _log_heatmaps(self, x, recon, exam_i=2, window_i=80, stage="val"):
         exam_i = min(exam_i, x.shape[0] - 1)
         window_i = min(window_i, x.shape[1] - 1)
         tb = self.logger.experiment  # type: ignore
@@ -212,6 +244,14 @@ def load_s00_conn_memmap():
                 mode = 'r', #only reading
                 shape = (n_exams, c.N_windows, c.N_channels, c.N_channels, len(c.freq_bands)))
     return mm, i_exams, n_exams
+
+def load_conn_memmap():
+    i_exams = np.arange(0, c.N_exams, 1)
+    mm = np.memmap(c.all_sites_conn_path, 
+                dtype = c.dtype, 
+                mode = 'r', #only reading
+                shape = (c.N_exams, c.N_windows, c.N_channels, c.N_channels, len(c.freq_bands)))
+    return mm, i_exams
 
 def heatmap_bands(mats, cmap='viridis', input_type='original', title=None, vmin=None, vmax=None):
     """

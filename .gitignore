@@ -3,4 +3,12 @@ data/
 process_metadata/regress.ipynb
 dl_venv/
 process_eeg_data/batch.processing.log
+load_eeg_data/ffDTF_extraction.log
 load_eeg_data/logs
+load_eeg_data/logs_all
+load_eeg_data/result
+load_eeg_data/result_all
+load_eeg_data/splits
+load_eeg_data/train_cv_s00.py
+load_eeg_data/plots
+commands.txt

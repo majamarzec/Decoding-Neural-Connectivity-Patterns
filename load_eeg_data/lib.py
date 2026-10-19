@@ -22,6 +22,14 @@ def load_eeg_memmap():
                 shape = (c.N_exams, c.N_windows, c.N_channels, c.Window_len*c.Fs))
     return mm
 
+def load_conn_memmap():
+    i_exams = np.arange(0, c.N_exams, 1)
+    mm = np.memmap(c.all_sites_conn_path, 
+                dtype = c.dtype, 
+                mode = 'r', #only reading
+                shape = (c.N_exams, c.N_windows, c.N_channels, c.N_channels, len(c.freq_bands)))
+    return mm, i_exams
+
 def load_s00_conn_memmap():
     meta = read_metadata()
     i_exams = np.where(np.asarray(meta['site']) == 'S00')[0]
