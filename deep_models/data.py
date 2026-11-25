@@ -49,8 +49,7 @@ class _BaseMILDataset(Dataset):
     Subclasses define the data source (_open_memmap), optionally filter the
     metadata rows (_select_meta) and optionally change the condition (_build_cond)."""
 
-    def __init__(self, exam_idx, max_instances=None, train=False, return_cond=False,
-                 age_center=40.0, age_scale=25.0):
+    def __init__(self, exam_idx, max_instances=None, train=False, return_cond=False, age_center=40.0, age_scale=25.0):
         self.exam_idx = np.asarray(exam_idx)
         self.max_instances = max_instances   # max windows taken from one exam (bag)
         self.train = train                   # True: random window subsampling; False: deterministic
@@ -62,7 +61,7 @@ class _BaseMILDataset(Dataset):
         self.cond = self._build_cond(meta, age_center, age_scale)   # (n_exams, cond_dim)
         self.cond_dim = self.cond.shape[1]
 
-    # ---- hooks -----------------------------------------------------------
+
     def _select_meta(self, meta):
         return meta
 
@@ -70,7 +69,9 @@ class _BaseMILDataset(Dataset):
         raise NotImplementedError
 
     def _build_cond(self, meta, age_center, age_scale):
-        """Default condition: [age scaled to about [-1, 1], female 0/1]."""
+        """
+        Default condition: [age scaled to ~[-1, 1], female 0/1].
+        """
         age = np.asarray(meta['age'], dtype=np.float32)
         female = np.asarray(meta['female'], dtype=np.float32)
         return np.stack([(age - age_center) / age_scale, female], axis=1)

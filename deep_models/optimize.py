@@ -4,14 +4,11 @@ import optuna
 import torch
 from torch.utils.data import DataLoader
 
-from . import data 
-from data import load_folds, make_splits, S00MILDataset
-from . import vae 
-from vae import ConvVAE, active_units
-from . import vae_train
-from vae_train import init_model, fit, encode_bags
+from .data import load_folds, make_splits, S00MILDataset
+from .vae import ConvVAE, active_units
+from .vae_train import init_model, fit, encode_bags
+from . import config as c
 
-dev_path = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/split_data/one_site/splits/s00_developmental.npz"
 TUNE_SPLITS = (0, 3, 7)
 ANNEAL_START = 50
 ANNEAL_EPOCHS = 50
@@ -19,10 +16,9 @@ ANNEAL_END = ANNEAL_START + ANNEAL_EPOCHS
 
 ckpt_dir = Path("optuna_ckpts")
 ckpt_dir.mkdir(exist_ok=True)
-device = torch.device("cuda")
 
 # Pre-build loaders once for all tuning splits
-developmental_folds = load_folds(dev_path)
+developmental_folds = load_folds(c.dev_path)
 all_splits = {k: (tr, va, te) for k, tr, va, te in make_splits(developmental_folds)}
 
 split_loaders = {}
@@ -32,9 +28,8 @@ for k in TUNE_SPLITS:
     train_ds = S00MILDataset(train_idx, max_instances=150, train=True)
     val_ds   = S00MILDataset(val_idx,   max_instances=150, train=False)
     split_loaders[k] = (
-        DataLoader(train_ds, batch_size=10, shuffle=True,  num_workers=2, pin_memory=True),
-        DataLoader(val_ds,   batch_size=10, shuffle=False, num_workers=2, pin_memory=True),
-    )
+        DataLoader(train_ds, batch_size=10, shuffle=True,  num_workers=4, pin_memory=True),
+        DataLoader(val_ds,   batch_size=10, shuffle=False, num_workers=4, pin_memory=True))
 
 
 def objective(trial):
@@ -55,14 +50,14 @@ def objective(trial):
             batchnorm=batchnorm,
             fc_act=fc_act,
             cond_dim=0,
-        ).to(device)
+        ).to(c.device)
         init_model(model, train_loader)
 
         history = fit(
             model,
             train_loader,
             val_loader,
-            device,
+            c.device,
             epochs=150,
             lr=lr,
             weight_decay=weight_decay,
@@ -71,7 +66,7 @@ def objective(trial):
             anneal_epochs=ANNEAL_EPOCHS,
             ckpt_path=str(ckpt_dir / f"trial_{trial.number}_split{k}.pt"))
 
-        val_mu, val_logvar, _ = encode_bags(model, val_loader, device)
+        val_mu, val_logvar, _ = encode_bags(model, val_loader, c.device)
         n_active, _, _ = active_units(val_mu, val_logvar, thr=0.01)
 
         post_total = history["val_total"][ANNEAL_END:]

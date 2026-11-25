@@ -32,7 +32,7 @@ def init_model(model, loader, n_batches=None):
 # 2. Loss, beta schedule, optimiser
 # ======================================================================================
 def _offdiag(x):
-    mask = ~torch.eye(x.shape[-1], dtype=torch.bool, device=x.device)
+    mask = ~torch.eye(x.shape[-1], dtype=torch.bool, device=c.device)
     return x[..., mask]
 
 
@@ -43,10 +43,10 @@ def _kl_per_sample(model, posterior):
     return -0.5 * (1 + log_var - mu.pow(2) - log_var.exp()).sum(-1)
 
 
-def loss_function(model, x_rec, x, posterior, beta):
+def loss_function(model, x_reconstructed, x, posterior, beta):
     n = x.shape[0]
-    recon = F.mse_loss(_offdiag(x_rec), _offdiag(x), reduction="sum") / n   # off-diag SSE per sample
-    kld = _kl_per_sample(model, posterior).mean()                          # nats per sample
+    recon = F.mse_loss(_offdiag(x_reconstructed), _offdiag(x), reduction="sum") / n  # off-diag SSE per sample
+    kld = _kl_per_sample(model, posterior).mean() # nats per sample
     return recon + beta * kld, recon, kld
 
 
@@ -114,9 +114,11 @@ def evaluate(model, loader, device, beta, offdiag_r2=True):
     return {"total": recon + beta * kld, "recon": recon, "mse": mse, "kld": kld, "r2": r2.compute()}
 
 
-def fit(model, trainloader, valloader, device, epochs=150, lr=1e-3, weight_decay=1e-5,
+def fit(model, trainloader, valloader, 
+        epochs=150, lr=1e-3, weight_decay=1e-5,
         beta_max=5e-4, anneal_start=50, anneal_epochs=50, use_plateau=True,
-        ckpt_path="best_vae.pt"):
+        ckpt_path="best_vae.pt", device = c.device):
+    
     optimizer = make_optimizer(model, lr, weight_decay)
     scheduler = (torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3)
                  if use_plateau else None)
@@ -196,7 +198,7 @@ def plot_history(history, skip=1):
 
 
 @torch.no_grad()
-def encode_bags(model, loader, device):
+def encode_bags(model, loader, device = c.device):
     """Posterior means/log-vars per window, shaped (exams, windows, latent), plus exam labels.
     Needs the same number of windows in every bag (e.g. 150) so batches can be concatenated.
     For a conditional model the loader must also return the condition (return_cond=True).
@@ -215,7 +217,7 @@ def encode_bags(model, loader, device):
 
 
 @torch.no_grad()
-def encode_bags_sparse(model, loader, device):
+def encode_bags_sparse(model, loader, device = c.device):
     """Gated sparse codes z and gate probabilities gamma, shaped (exams, windows, latent), plus exam labels."""
     model.eval()
     zs, gammas, ys = [], [], []
@@ -246,7 +248,7 @@ def embed_bags(model, loader, device):
 
 
 @torch.no_grad()
-def plot_reconstructions(model, loader, device, exam_idx=0, window_indices=(0, 1, 2)):
+def plot_reconstructions(model, loader, exam_idx=0, window_indices=(0, 1, 2), device = c.device):
     """Original vs reconstruction vs squared error using viz.compare_heatmaps_model."""
     model.eval()
     batch = next(iter(loader))
@@ -254,7 +256,6 @@ def plot_reconstructions(model, loader, device, exam_idx=0, window_indices=(0, 1
     x, cond = unpack_batch(single_batch, device, model.cond_dim)
     x_rec, *_ = model(x, cond)
 
-    # Restore (1, windows, bands, C, C) for compare_heatmaps_model
     x_5d = x.unsqueeze(0)
     rec_5d = x_rec.unsqueeze(0)
 
@@ -279,7 +280,7 @@ def plot_tsne(val_mu, val_y, random_state=0):
 
 
 @torch.no_grad()
-def plot_prior_samples(model, device, num_samples=7, cond=None):
+def plot_prior_samples(model, num_samples=7, cond=None, device = c.device):
     """Sample from the prior (N(0, I), or spike-and-slab alpha * N(0, I) for SparseConvVAE) and decode."""
     model.eval()
     z = torch.randn((num_samples, model.latent), device=device)
