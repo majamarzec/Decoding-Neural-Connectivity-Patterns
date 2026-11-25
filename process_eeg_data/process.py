@@ -2,7 +2,6 @@
 The script executing the whole processing + saving pipeline.
 """
 
-
 import logging
 from pipeline_module import run_pipeline
 

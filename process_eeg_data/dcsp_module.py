@@ -93,13 +93,13 @@ def apply_specified_filters(data: RawDataset) -> None:
     ws_hp = wp_hp * 0.5
     N_hp, Wn_hp = buttord(wp=wp_hp, ws=ws_hp, gpass=c.DEFAULT_GPASS, gstop=c.DEFAULT_GSTOP, fs=sfreq)
     sos_hp = butter(min(N_hp, c.DEFAULT_MAX_ORDER), Wn_hp, btype="highpass", fs=sfreq, output="sos")
-    raw.apply_function(lambda d: sosfiltfilt(sos_hp, d, axis=-1), verbose=False)
+    raw.apply_function(lambda d: sosfiltfilt(sos_hp, d, axis=-1), verbose=False) #same comment about lambda as above
     
     wp_lp = c.DEFAULT_LP_CUTOFF
     ws_lp = wp_lp + (wp_lp * 0.25)
     N_lp, Wn_lp = buttord(wp=wp_lp, ws=ws_lp, gpass=c.DEFAULT_GPASS, gstop=c.DEFAULT_GSTOP, fs=sfreq)
     sos_lp = butter(min(N_lp, c.DEFAULT_MAX_ORDER), Wn_lp, btype="lowpass", fs=sfreq, output="sos")
-    raw.apply_function(lambda d: sosfiltfilt(sos_lp, d, axis=-1), verbose=False)
+    raw.apply_function(lambda d: sosfiltfilt(sos_lp, d, axis=-1), verbose=False) #same comment about lambda as above
 
 def apply_resample(data: RawDataset) -> None:
     raw = data.raw
@@ -154,6 +154,5 @@ def load_and_process_continuous_eeg(row_from_original_metadata: dict) -> Tuple[O
     apply_rereference_and_drop(signal)
     if signal is not None:
         signal.raw.reorder_channels(c.VALID_CHANNELS_AFTER_DROP)
-
     return signal, technical_info
 
