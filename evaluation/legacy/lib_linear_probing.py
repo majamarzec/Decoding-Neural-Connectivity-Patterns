@@ -9,8 +9,6 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
 # ----------------------------------------------------------------------------------------------
 # VQ-VAE Specific Extractors & Helpers
 # ----------------------------------------------------------------------------------------------

@@ -112,7 +112,6 @@ class ConvVAE(nn.Module):
         if mask_diag:
             self.register_buffer("offdiag_mask", 1.0 - torch.eye(size))
 
-        # constructor arguments (resolved), e.g. to store in summary.json next to a checkpoint
         self.config = dict(latent=latent, hidden=tuple(hidden), kernel=kernel, strides=strides,
                            padding=padding, batchnorm=batchnorm, in_ch=in_ch, size=size,
                            out_act=out_act, mask_diag=mask_diag, fc_act=fc_act,

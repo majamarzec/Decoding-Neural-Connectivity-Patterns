@@ -12,38 +12,43 @@ from sklearn.manifold import TSNE
 
 from .viz import heatmap_bands, compare_heatmaps_model
 from .train_utils import FoldR2, mean_offdiag_per_band, unpack_batch
+from . import config as c
 
 
 # ======================================================================================
 # 1. Initialisation
 # ======================================================================================
-def init_model(model, loader, n_batches=None):
-    """He/Xavier weights, output bias at the typical value of each band (needs the training loader)."""
+def init_model(model, train_loader, n_batches=None):
+    """
+    He/Xavier weights
+    Output bias at the typical value of each band.
+    """
     model.reset_parameters()
-    model.set_output_bias(mean_offdiag_per_band(loader, n_batches, offdiag=model.mask_diag))
+    model.set_output_bias(mean_offdiag_per_band(train_loader, n_batches, offdiag=model.mask_diag))
     return model
 
 
 # ======================================================================================
 # 2. Loss & optimiser
 # ======================================================================================
-def loss_function(x_rec, x, vq_loss):
-    """Tutorial weighting: MSE + vq_loss. Also returns SSE per sample to compare with ConvVAE."""
+def loss_function(x_reconstructed, x, vq_loss):
+    """
+    Weighting: MSE + vq_loss. 
+    Also returns SSE per sample to compare with ConvVAE.
+    """
     n = x.shape[0]
-    mse = F.mse_loss(x_rec, x)
-    sse_per_sample = F.mse_loss(x_rec, x, reduction="sum") / n
+    mse = F.mse_loss(x_reconstructed, x)
+    sse_per_sample = F.mse_loss(x_reconstructed, x, reduction="sum") / n
     return mse + vq_loss, mse, vq_loss, sse_per_sample
 
 
 def make_optimizer(model, lr=1e-3, weight_decay=1e-5):
-    """Adam; weight decay only on conv weights, not on biases, GroupNorms, or the codebook."""
+    """AdamW optimizer; weight decay only on conv weights, not on biases, GroupNorms, or the codebook."""
     codebook = {id(p) for p in model.vq.parameters()}
     decay, no_decay = [], []
     for p in model.parameters():
         (decay if p.ndim > 1 and id(p) not in codebook else no_decay).append(p)
-    return torch.optim.Adam(
-        [{"params": decay, "weight_decay": weight_decay},
-         {"params": no_decay, "weight_decay": 0.0}], lr=lr)
+    return torch.optim.AdamW([{"params": decay, "weight_decay": weight_decay}, {"params": no_decay, "weight_decay": 0.0}], lr=lr)
 
 
 # ======================================================================================
@@ -77,8 +82,11 @@ def train_one_epoch(model, loader, optimizer, device):
 
 @torch.no_grad()
 def evaluate(model, loader, device, offdiag_r2=True):
-    """Everything is accumulated over the WHOLE loader, so R^2 and perplexity are fold-wide
-    values, not a mean of per-batch values."""
+    """
+    Everything is accumulated over the loader.
+    R^2 and perplexity are fold-wide
+    values, not a mean of per-batch values.
+    """
     model.eval()
     n, n_el, sse_all, vq_weighted = 0, 0, 0.0, 0.0
     r2 = FoldR2(offdiag=offdiag_r2)
@@ -111,14 +119,13 @@ def evaluate(model, loader, device, offdiag_r2=True):
     }
 
 
-def fit(model, trainloader, valloader, device, epochs=150, lr=1e-3, weight_decay=1e-5,
-        use_plateau=True, ckpt_path="best_vqvae.pt"):
+def fit(model, trainloader, valloader, device, epochs=150, lr=1e-3, weight_decay=1e-5, use_plateau=True, ckpt_path="best_vqvae.pt"):
+    
     optimizer = make_optimizer(model, lr, weight_decay)
     scheduler = (torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=5)
                  if use_plateau else None)
 
-    keys = ["train_total", "train_mse", "train_vq", "train_recon", "train_perplexity",
-            "val_total", "val_mse", "val_vq", "val_recon", "val_perplexity", "val_r2"]
+    keys = ["train_total", "train_mse", "train_vq", "train_recon", "train_perplexity", "val_total", "val_mse", "val_vq", "val_recon", "val_perplexity", "val_r2"]
     history = {k: [] for k in keys}
     best_val, best_state = float("inf"), None
 
@@ -126,14 +133,14 @@ def fit(model, trainloader, valloader, device, epochs=150, lr=1e-3, weight_decay
         tr = train_one_epoch(model, trainloader, optimizer, device)
         va = evaluate(model, valloader, device)
 
-        for k, v in zip(keys, (*tr, va["total"], va["mse"], va["vq"],
-                               va["recon"], va["perplexity"], va["r2"])):
+        for k, v in zip(keys, (*tr, va["total"], va["mse"], va["vq"], va["recon"], va["perplexity"], va["r2"])):
             history[k].append(v)
 
         if va["total"] < best_val:
             best_val = va["total"]
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
             torch.save(best_state, ckpt_path)
+
         if scheduler is not None:
             scheduler.step(va["total"])
 
@@ -187,7 +194,7 @@ def plot_history(history, skip=1):
 
 
 @torch.no_grad()
-def encode_bags(model, loader, device):
+def encode_bags(model, loader, device = c.device):
     """Quantized embeddings and discrete code indices per window, shaped:
       z_q:     (exams, windows, latent_channels * grid * grid)  -- continuous features for MIL
       indices: (exams, windows, grid * grid)                    -- discrete code indices in [0, K)
@@ -207,7 +214,7 @@ def encode_bags(model, loader, device):
 
 
 @torch.no_grad()
-def plot_reconstructions(model, loader, device, exam_idx=0, window_indices=(0, 1, 2)):
+def plot_reconstructions(model, loader, exam_idx=0, window_indices=(0, 1, 2), device = c.device):
     """Original vs reconstruction vs squared error using viz.compare_heatmaps_model."""
     model.eval()
     batch = next(iter(loader))
@@ -240,7 +247,7 @@ def plot_tsne(val_z_q, val_y, random_state=0):
 
 
 @torch.no_grad()
-def plot_prior_samples(model, device, num_samples=7, probs=None):
+def plot_prior_samples(model, num_samples=7, probs=None, device = c.device):
     """Sample a (grid x grid) codebook index map (uniform, or from marginal `probs`) and decode."""
     model.eval()
     K = model.vq.code_book_size

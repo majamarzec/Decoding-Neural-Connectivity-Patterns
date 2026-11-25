@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 signals_path = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/eeg/eeg.dat" #all accepted recordings after processing
 metadata_path = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/data/meta/exams_processed.csv" #corresponding labels and metadata 
@@ -27,3 +28,8 @@ freq_bands = {'delta': (1.0, 4.0),
 
 f = np.arange(1, 40, 1)
 p = 9 #set mvar model order
+
+#path to developmental set from S00
+dev_path = "/dmj/fizmed/mmarzec/licencjat_neuro/DL-NS/split_data/one_site/splits/s00_developmental.npz"
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+

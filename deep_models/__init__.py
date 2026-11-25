@@ -11,7 +11,7 @@ from . import config, train_utils, vae_train, vqvae_train, viz
 from .data import MILDataset, S00MILDataset, load_conn_memmap, load_s00_conn_memmap, read_metadata
 from .lit_models import BagClassifier
 from .mil import AttnMILHead
-from .vae_BrainNetCNN import BrainNetCNNVAE
+from .vae_bncnn import BrainNetCNNVAE
 from .vae import (
     ConvVAE,
     SparseConvVAE,
@@ -25,8 +25,6 @@ from .vqvae import ConvVQVAE, active_codes, plot_codebook_usage
 __all__ = [
     "config", "train_utils", "vae_train", "vqvae_train", "viz",
     "MILDataset", "S00MILDataset", "load_conn_memmap", "load_s00_conn_memmap", "read_metadata",
-    "BagClassifier", "AttnMILHead",
-    "BrainNetCNNVAE",
+    "BagClassifier", "AttnMILHead", "BrainNetCNNVAE",
     "ConvVAE", "SparseConvVAE", "active_units", "plot_latent_usage", "sparse_usage", "plot_sparse_latent_usage",
-    "ConvVQVAE", "active_codes", "plot_codebook_usage",
-]
+    "ConvVQVAE", "active_codes", "plot_codebook_usage"]

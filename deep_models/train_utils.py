@@ -1,11 +1,16 @@
 """Helpers shared by vae_train.py and vqvae_train.py."""
 import torch
+from . import config as c
 
 
 @torch.no_grad()
 def mean_offdiag_per_band(loader, n_batches=None, offdiag=True):
-    """Mean value per frequency band over all windows (diagonal excluded by default).
-    Shapes are inferred from the data: batches are (x, ...) with x = (exams, windows, bands, C, C)."""
+    """
+    Mean value per frequency band over all windows (diagonal excluded by default).
+    Shapes are inferred from the data: batches are (x, ...) with x = (exams, windows, bands, C, C).
+    Used for bias initialization
+    """
+
     total, count = None, 0
     for i, batch in enumerate(loader):
         x = batch[0].flatten(0, 1).double()                          # (N, B, C, C)
@@ -23,7 +28,7 @@ def mean_offdiag_per_band(loader, n_batches=None, offdiag=True):
     return (total / count).float()                                   # (B,)
 
 
-def unpack_batch(batch, device, cond_dim=0):
+def unpack_batch(batch, device=c.device, cond_dim=0):
     """(bag, label[, cond]) -> (x, cond) with windows flattened into the batch dimension.
 
     x:    (exams * windows, bands, C, C)
@@ -42,7 +47,8 @@ def unpack_batch(batch, device, cond_dim=0):
 
 
 class FoldR2:
-    """Fold-wide R^2 (variance_weighted) against the 'always predict the mean matrix' baseline.
+    """
+    Fold-wide R^2 (variance_weighted) against the 'always predict the mean matrix' baseline.
 
     Accumulates batch by batch, so the result is the R^2 of the WHOLE loader, not a mean of
     per-batch values. offdiag=True ignores the diagonal (it is masked to 0 in the models)."""
@@ -52,8 +58,8 @@ class FoldR2:
         self.n, self.sse = 0, 0.0
         self.sum_x = self.sum_x2 = self.mask = None
 
-    def update(self, x, x_rec):
-        xd, rd = x.double(), x_rec.double()
+    def update(self, x, x_reconstructed):
+        xd, rd = x.double(), x_reconstructed.double()
         if self.mask is None:
             mask = torch.ones(xd.shape[1:], dtype=torch.float64, device=xd.device)
             if self.offdiag:
