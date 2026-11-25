@@ -1,2 +1,0 @@
-from all_sites_features_computation import run_pipeline
-run_pipeline()

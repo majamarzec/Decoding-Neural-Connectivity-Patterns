@@ -4,6 +4,7 @@ Digital windowed signal processing module:
 (1) cut the continuous signal in non-overlapping fixed-length windows
 (2) apply criterion of flat & too artifacted windows drop (+ register the drops)
 """
+
 import warnings
 warnings.filterwarnings(
     "ignore",

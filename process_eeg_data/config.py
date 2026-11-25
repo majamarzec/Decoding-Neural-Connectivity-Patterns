@@ -49,11 +49,10 @@ TARGET_WINDOWS = 150 # we assume that longer recordings come from sleep deprivia
 
 ###############
 VALID_CHANNELS = ['Fp1','Fp2','F7','F3','Fz','F4','F8','T3','C3','Cz','C4','T4','T5','P3','Pz','P4','T6','O1','O2']
-VALID_CHANNELS_AFTER_DROP = ['Fp1','Fp2','F7','F3','Fz','F4','F8','T3','C3','Cz','C4','T4','P3','Pz','P4','O1','O2']
+VALID_CHANNELS_AFTER_DROP = ['Fp1','Fp2','F7','F3','Fz','F4','F8','T3','C3','Cz','C4','T4','P3','Pz','P4','O1','O2'] #removed T5 & T6 (montage electodes)
 
 CHNAMES_MAPPING = [
-    {
-        "EEG Fp1": "Fp1",
+    {   "EEG Fp1": "Fp1",
         "EEG Fp2": "Fp2",
         "EEG F7": "F7",
         "EEG F3": "F3",

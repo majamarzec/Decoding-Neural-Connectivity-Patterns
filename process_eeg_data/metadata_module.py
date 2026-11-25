@@ -8,14 +8,14 @@ def read_metadata(metadata_path: str = c.META_EVENTS_PATH) -> DataFrame:
     return read_csv(metadata_path)
 
 def append_good_eeg_metadata(eeg_description: dict, 
-                            exams_processed: str = c.META_EVENTS_PROCESSED_PATH) -> None:
+                             exams_processed: str = c.META_EVENTS_PROCESSED_PATH) -> None:
     DataFrame([eeg_description]).to_csv(exams_processed, mode="a", header = False, index=False)
 
 
 def append_processed_eegs_technical_info_metadata(info: dict, 
-                                   exams_processed_technical_info : str = c.META_EVENTS_PROCESSED_TECH_PATH) -> None:
+                                                  exams_processed_technical_info : str = c.META_EVENTS_PROCESSED_TECH_PATH) -> None:
     DataFrame([info]).to_csv(exams_processed_technical_info, mode="a", header = False, index=False)
 
 def append_not_processed_eegs_technical_info_metadata(info: dict, 
-                                   exams_processed_technical_info : str = c.META_EVENTS_NOT_PROCESSED_TECH_PATH) -> None:
-    DataFrame([info]).to_csv(exams_processed_technical_info, mode="a", header = False, index=False)
+                                                      exams_not_processed_technical_info : str = c.META_EVENTS_NOT_PROCESSED_TECH_PATH) -> None:
+    DataFrame([info]).to_csv(exams_not_processed_technical_info, mode="a", header = False, index=False)
